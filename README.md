@@ -1,4 +1,5 @@
 # cloudlogs-downloader
+![Build Status](https://github.com/croccocode/cloudlogs-downloader/actions/workflows/go.yml/badge.svg)
 Bulk download logs from Newrelic (additional provider like AWS CloudWatch and Google Cloud will be added on request)
 
 ## Why do you need it
