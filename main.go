@@ -35,7 +35,7 @@ func main() {
 	viper.AddConfigPath(".")
 	err := viper.ReadInConfig()
 	if err != nil {
-		stderr.Panicf("fatal error config file: %w", err)
+		stderr.Panicf("fatal error config file: %v", err)
 	}
 
 	start, _ := time.Parse("2006-01-02 15:04:05 MST", viper.GetString("from"))
