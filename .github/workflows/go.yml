@@ -22,4 +22,4 @@ jobs:
       run: curl -o ./shmake "https://raw.githubusercontent.com/totomz/shmake/main/shmake" && chmod +x ./shmake
 
     - name: Test
-      run: shmake test
+      run: ./shmake test
