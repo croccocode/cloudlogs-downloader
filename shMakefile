@@ -1,0 +1,19 @@
+#!/bin/bash
+
+build() {
+  rm bin/* || true
+  log "compiling..."
+
+  buildTarget=("linux:amd64" "darwin:amd64" "darwin:arm64" "windows:amd64")
+  for target in "${buildTarget[@]}"; do
+    IFS=":" read -r -a tg <<<"${target}"
+
+    log "Building ${tg[0]}_${tg[1]}"    
+    GOOS=${tg[0]} GOARCH=${tg[1]} go build -o "bin/cloudlogs_downloader_${tg[0]}_${tg[1]}" main.go
+  done
+
+}
+
+test() {
+  go test ./...
+}
