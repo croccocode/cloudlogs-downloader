@@ -3,6 +3,7 @@ module gitlab.mgmt.infocert.it/infra/nrlog-exporter
 go 1.19
 
 require (
+	github.com/aws/aws-sdk-go v1.44.215
 	github.com/newrelic/newrelic-client-go v1.1.0
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/spf13/viper v1.15.0
@@ -16,6 +17,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
