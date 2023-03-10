@@ -59,11 +59,11 @@ func main() {
 		nrApiKey := viper.GetString("newrelic.apiKey")
 
 		runner := &scraper.NewRelicScraper{
-			AccountId:  nrAccountNum, // pr-factory
-			Nrql:       viper.GetString("newrelic.nrql"),
-			Client:     scraper.NewNerdGraphClient(nrApiKey),
-			ParseLines: scraper.ParsePodsLogs,
-			MaxLines:   2000,
+			AccountId: nrAccountNum, // pr-factory
+			Nrql:      viper.GetString("newrelic.nrql"),
+			Client:    scraper.NewNerdGraphClient(nrApiKey),
+			MaxLines:  2000,
+			Fields:    viper.GetStringSlice("newrelic.queryFields"),
 		}
 		logScraper = runner
 	}
