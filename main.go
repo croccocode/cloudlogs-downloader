@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/spf13/viper"
 	"gitlab.mgmt.infocert.it/infra/nrlog-exporter/scraper"
 	"golang.org/x/time/rate"
@@ -43,18 +46,50 @@ func main() {
 	step := time.Duration(viper.GetInt("step")) * time.Second
 	destinationPath := viper.GetString("destinationPath")
 
+	var logScraper scraper.LogScraper
+	limiter := rate.NewLimiter(rate.Limit(viper.GetInt("maxCallPerSec")), 30)
 	nrAccountNum := viper.GetInt("newrelic.queryAccountNumber")
-	nrApiKey := viper.GetString("newrelic.apiKey")
-	limitBuckSize := viper.GetInt("newrelic.maxCallPerSec")
-	runner := &scraper.NewRelicScraper{
-		AccountId:  nrAccountNum, // pr-factory
-		Nrql:       viper.GetString("newrelic.nrql"),
-		Limiter:    rate.NewLimiter(rate.Limit(limitBuckSize), 30),
-		Client:     scraper.NewNerdGraphClient(nrApiKey),
-		ParseLines: scraper.ParsePodsLogs,
-		MaxLines:   2000,
+	awsProfile := viper.GetString("cloudwatch.awsProfile")
+
+	if nrAccountNum != 0 && awsProfile != "" {
+		stderr.Panicf("please specify only one between NewRelic and Cloudwatch ")
 	}
 
-	scraper.ScrapeLogs(start, end, step, runner, destinationPath)
+	if nrAccountNum != 0 {
+		nrApiKey := viper.GetString("newrelic.apiKey")
+
+		runner := &scraper.NewRelicScraper{
+			AccountId:  nrAccountNum, // pr-factory
+			Nrql:       viper.GetString("newrelic.nrql"),
+			Client:     scraper.NewNerdGraphClient(nrApiKey),
+			ParseLines: scraper.ParsePodsLogs,
+			MaxLines:   2000,
+		}
+		logScraper = runner
+	}
+
+	if awsProfile != "" {
+
+		awsRegion := viper.GetString("cloudwatch.awsRegion")
+		sess, err := session.NewSessionWithOptions(session.Options{
+			Profile: awsProfile,
+			Config:  aws.Config{Region: aws.String(awsRegion)},
+		})
+		if err != nil {
+			stderr.Panic(err)
+		}
+
+		runner := &scraper.CloudwatchLogsScraper{
+			Cw:           cloudwatchlogs.New(sess),
+			LogGroupName: viper.GetString("cloudwatch.logGroup"),
+			Query:        viper.GetString("cloudwatch.query"),
+		}
+		logScraper = runner
+	}
+
+	if logScraper == nil {
+		stderr.Panicf("no runner configured")
+	}
+	scraper.ScrapeLogs(start, end, step, logScraper, destinationPath, limiter)
 
 }

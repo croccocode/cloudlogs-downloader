@@ -1,18 +1,34 @@
 # Where to store the logs
 destinationPath: "/Users/totomz/Desktop/task"
 # since when to grap logs
-from: "2023-01-29 00:00:00 UTC"
-# untill
-to: "2023-02-20 00:00:00 UTC"
+from: "2023-03-07 14:00:00 CET"
+to: "2023-03-07 14:25:00 CET"
 # the time interval will be splitted in steps with this length, in seconds 
 # (each step results in a separate query; if a single step returns too many data, only that step is split in 2 half)
 step: 60
-newrelic:
+
+# max number of API requests per second. 40 is a good default (higher than 40 usually results in being throttled by NewRelic)
+maxCallPerSec: 4
+# Add eithe ra newrelic or a cloudwatch object. 
+# Adding obth of them results in a totally unexpected, and potentially dangerous, behaviour.
+newrelic:  
   # Wich nrewrelic account to query (the account that has de logs)
   queryAccountNumber: 9999999
   # The apikey to use to call NewRelic
   apiKey: "NRAK-XXXXXXXXXXXXX"
   # The Newrelic query to execute
   nrql: "SELECT timestamp, namespace_name, container_name, pod_name, message from Log WHERE  cluster_name='prod' and namespace_name like 'ingress%' and message NOT LIKE '\tat%' "
-  # max number of API requests per second. 40 is a good default (higher than 40 usually results in being throttled by NewRelic)
-  maxCallPerSec: 40
+
+  
+
+#cloudwatch:
+#  awsProfile: "xxx"
+#  awsRegion: "eu-west-1"
+#  logGroup: "/aws/batch/job"
+#  query: |
+#    fields @timestamp, @message, @logStream, @log
+#    | parse @message /.+ (?<@time>\d+)/
+#    | filter @time like /^164.+$/
+#    | sort @timestamp desc
+#    | limit 2000
+  

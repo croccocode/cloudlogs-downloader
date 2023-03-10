@@ -2,8 +2,11 @@ package scraper
 
 import (
 	"compress/gzip"
+	"context"
+	"errors"
 	"fmt"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/time/rate"
 	"log"
 	"os"
 	"sync"
@@ -11,8 +14,10 @@ import (
 )
 
 var (
-	stdout *log.Logger
-	stderr *log.Logger
+	stdout = log.New(os.Stdout, "", log.Lshortfile|log.LstdFlags)
+	stderr = log.New(os.Stderr, "[ERROR] ", log.Lmsgprefix|log.Lshortfile|log.LstdFlags)
+
+	errTooManyRows = errors.New("too many rows")
 )
 
 type Inst struct {
@@ -25,7 +30,7 @@ func (i Inst) Duration() time.Duration {
 }
 
 type LogScraper interface {
-	DoQuery(from, to time.Time) ([]string, error)
+	DoQuery(inst Inst) ([]string, error)
 }
 
 func SetStdout(logger *log.Logger) {
@@ -90,7 +95,7 @@ func SplitInterval(inst Inst) []Inst {
 }
 
 // ScrapeLogs starts querying the log provider using the
-func ScrapeLogs(start, end time.Time, step time.Duration, runner *NewRelicScraper, destinationPath string) {
+func ScrapeLogs(start, end time.Time, step time.Duration, runner LogScraper, destinationPath string, limiter *rate.Limiter) {
 
 	inst := start.Add(step)
 	instChannel := make(chan Inst, 500)
@@ -101,34 +106,14 @@ func ScrapeLogs(start, end time.Time, step time.Duration, runner *NewRelicScrape
 	bar := progressbar.Default(int64(steps))
 
 	// start the worker
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for i := range instChannel {
-			i := i
-			// skip if the file exists (without creating a routine)
-			fileName := fmt.Sprintf("%s/%s-%s.csv.gz", destinationPath, i.From.Format("20060102_150405"), i.To.Format("20060102_150405"))
-			_, err := os.Stat(fileName)
-			if err == nil {
-				// stdout.Printf("%s exists, skipping", fileName)
-				_ = bar.Add(1)
-				continue
-			}
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
-				lines, err := runner.DoQuery(i)
-				if err == nil {
-					WriteFileGzip(fileName, lines)
-				}
-				_ = bar.Add(1)
-
-			}()
-		}
-	}()
+	nThread := 3
+	for i := 0; i < nThread; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			processor(instChannel, destinationPath, bar, limiter, runner)
+		}()
+	}
 
 	// generate time slices
 	iter := 0.0
@@ -154,4 +139,47 @@ func ScrapeLogs(start, end time.Time, step time.Duration, runner *NewRelicScrape
 
 	wg.Wait()
 
+}
+
+func processor(instChannel chan Inst, destinationPath string, bar *progressbar.ProgressBar, limiter *rate.Limiter, runner LogScraper) {
+	for inst := range instChannel {
+		inst := inst
+		// skip if the file exists (without creating a routine)
+		fileName := fmt.Sprintf("%s/%s-%s.csv.gz", destinationPath, inst.From.Format("20060102_150405"), inst.To.Format("20060102_150405"))
+		_, err := os.Stat(fileName)
+		if err == nil {
+			// stdout.Printf("%s exists, skipping", fileName)
+			_ = bar.Add(1)
+			continue
+		}
+
+		// If a result set has more lines than the max number of rows limit,
+		// split the time interval and process it again
+		intervals := []Inst{inst}
+		for i := 0; i < len(intervals); i++ {
+			err = limiter.WaitN(context.Background(), 1)
+			if err != nil {
+				panic(err)
+			}
+
+			currentInterval := intervals[i]
+			lines, err := runner.DoQuery(currentInterval)
+
+			if err != nil {
+				if errors.Is(err, errTooManyRows) {
+					newIntervals := SplitInterval(currentInterval)
+					intervals = append(intervals, newIntervals...)
+					continue
+				}
+
+				stderr.Printf("error downoading logs: %v", err)
+				continue
+			}
+
+			WriteFileGzip(fileName, lines)
+			_ = bar.Add(1)
+
+		}
+
+	}
 }
