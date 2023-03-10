@@ -21,6 +21,6 @@ The inputs to `cloudlogs-downloader` are:
 Steps are saved in a local folder as `gzip` archive. If a step is already present in the destination folder, it is not downloaded again (so it is safe to stop this service in the middle of an execution)
 
 ## How to use it 
-* Download the latest executable release;
+* Download the latest executable [release](https://github.com/croccocode/cloudlogs-downloader/releases);
 * Copy and edit the `configuration.yaml` file
 * Run `./cloudlogs-downloader` 
