@@ -17,7 +17,7 @@ newrelic:
   # Which newrelic account to query (the account that has the logs)
   queryAccountNumber: 2698406
   # The apikey to use to call NewRelic
-  apiKey: "NRAK-6IOKFXZ5TZYTRRSMTDDB3EQSE2Y"
+  apiKey: "NRAK-xxxxx"
   # The Newrelic query to execute
   nrql: |
     Select * from Log where message LIKE '%yyi09999%' AND cluster_name='pr' 
